@@ -17,6 +17,10 @@
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
 
+struct Message {
+	char val[256];
+};
+
 // TCP client that use blocking sockets
 int main() 
 {
@@ -57,32 +61,46 @@ int main()
 	serverAddress.sin_addr.s_addr = inet_addr(SERVER_IP_ADDRESS);	// ip address of server
     serverAddress.sin_port = htons(SERVER_PORT);					// server port
 
-    // Connect to server specified in serverAddress and socket connectSocket
-    if (connect(connectSocket, (SOCKADDR*)&serverAddress, sizeof(serverAddress)) == SOCKET_ERROR)
-    {
-        printf("Unable to connect to server.\n");
-        closesocket(connectSocket);
-        WSACleanup();
+	if (connect(connectSocket, (SOCKADDR*)&serverAddress, sizeof(serverAddress)) == SOCKET_ERROR)
+	{
+		printf("Unable to connect to server.\n");
+		closesocket(connectSocket);
+		WSACleanup();
 		return 1;
-    }
- 
-	// Read string from user into outgoing buffer
-	printf("Enter message to send: ");
-	gets_s(dataBuffer, BUFFER_SIZE);
+	}
 
-    // Send message to server using connected socket
-    iResult = send( connectSocket, dataBuffer, (int)strlen(dataBuffer), 0 );
+	Message msg;
 
-	// Check result of send function
-    if (iResult == SOCKET_ERROR)
-    {
-        printf("send failed with error: %d\n", WSAGetLastError());
-        closesocket(connectSocket);
-        WSACleanup();
-        return 1;
-    }
+	do {
 
-	printf("Message successfully sent. Total bytes: %ld\n", iResult);
+		
+		// Read string from user into outgoing buffer
+		printf("Enter message to send: ");
+		gets_s(msg.val, BUFFER_SIZE);
+
+		// Send message to server using connected socket
+		iResult = send(connectSocket, (char*)&msg, sizeof(msg), 0);
+
+		// Check result of send function
+		if (iResult == SOCKET_ERROR)
+		{
+			printf("send failed with error: %d\n", WSAGetLastError());
+			closesocket(connectSocket);
+			WSACleanup();
+			return 1;
+		}
+
+		printf("Message successfully sent. Total bytes: %ld\n", iResult);
+
+	} while (true);
+    // Connect to server specified in serverAddress and socket connectSocket
+   
+
+
+
+
+
+
 
 	// Shutdown the connection since we're done
     iResult = shutdown(connectSocket, SD_BOTH);

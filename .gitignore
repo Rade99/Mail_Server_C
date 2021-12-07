@@ -54,3 +54,6 @@ dkms.conf
 # SQL Server files
 *.mdf
 *.ldf
+*.vs
+*.db
+

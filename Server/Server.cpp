@@ -15,6 +15,19 @@
 
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
+#define MAX_SOCKETS 6
+
+struct Message {
+	char val[256];
+};
+
+
+void Compact(SOCKET* acceptedSockets,int startIndex, int currentSize) {
+	for (int i = startIndex; i < currentSize - 1; i++) {
+		acceptedSockets[i] = acceptedSockets[i + 1];
+	}
+}
+
 
 // TCP server that use blocking sockets
 int main() 
@@ -23,7 +36,12 @@ int main()
     SOCKET listenSocket = INVALID_SOCKET;
 
     // Socket used for communication with client
-    SOCKET acceptedSocket = INVALID_SOCKET;
+	SOCKET acceptedSocket[MAX_SOCKETS];
+
+	for (int i = 0; i < MAX_SOCKETS; i++)
+	{
+		acceptedSocket[i] = INVALID_SOCKET;
+	}
 
     // Variable used to store function return value
     int iResult;
@@ -75,6 +93,15 @@ int main()
         return 1;
     }
 
+	unsigned long mode = 1;
+	iResult = ioctlsocket(listenSocket, FIONBIO, &mode);
+	if (iResult == SOCKET_ERROR)
+	{
+		closesocket(listenSocket);
+		WSACleanup();
+		return -1;
+	}
+
     // Set listenSocket in listening mode
     iResult = listen(listenSocket, SOMAXCONN);
     if (iResult == SOCKET_ERROR)
@@ -87,77 +114,185 @@ int main()
 
 	printf("Server socket is set to listening mode. Waiting for new connection requests.\n");
 
-    do
-    {
-		// Struct for information about connected client
-		sockaddr_in clientAddr;
+	fd_set readfds;
+	timeval timeVal;
+	timeVal.tv_sec = 1;
+	timeVal.tv_usec = 0;
 
-		int clientAddrSize = sizeof(struct sockaddr_in);
+	int currentClients = 0;
 
-        // Accept new connections from clients 
-        acceptedSocket = accept(listenSocket, (struct sockaddr *)&clientAddr, &clientAddrSize);
+	sockaddr_in client;
+	int size = sizeof(client);
 
-		// Check if accepted socket is valid 
-        if (acceptedSocket == INVALID_SOCKET)
-        {
-            printf("accept failed with error: %d\n", WSAGetLastError());
-            closesocket(listenSocket);
-            WSACleanup();
-            return 1;
-        }
+	FD_ZERO(&readfds);
 
-		printf("\nNew client request accepted. Client address: %s : %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+	while (true) {
 
-		do
+		if (currentClients != MAX_SOCKETS)
 		{
-			// Receive data until the client shuts down the connection
-			iResult = recv(acceptedSocket, dataBuffer, BUFFER_SIZE, 0);
-        
-			if (iResult > 0)	// Check if message is successfully received
+			FD_SET(listenSocket, &readfds);
+		}
+
+		for (int i = 0; i < currentClients; i++)
+		{
+			FD_SET(acceptedSocket[i], &readfds);
+		}
+
+		iResult = select(0, &readfds, NULL, NULL, &timeVal);
+
+		if (iResult == 0) {
+			printf("No changes \n");
+			continue;
+		}
+		else if (iResult == SOCKET_ERROR)
+		{
+			printf("error");
+			closesocket(listenSocket);
+			WSACleanup();
+			return -1;
+		}
+		else if(FD_ISSET(listenSocket,&readfds)){ //zahtev za konekciju
+			printf("Client \n");
+			acceptedSocket[currentClients] = accept(listenSocket, (SOCKADDR*)&client, &size);
+
+			if (acceptedSocket[currentClients] == INVALID_SOCKET)
 			{
-				dataBuffer[iResult] = '\0';
-
-				// Log message text
-				printf("Client sent: %s.\n", dataBuffer);
-
+				closesocket(acceptedSocket[currentClients]);
+				printf("Client connection error %d", currentClients);
+				continue;
 			}
-			else if (iResult == 0)	// Check if shutdown command is received
+
+			iResult = ioctlsocket(acceptedSocket[currentClients], FIONBIO, &mode);
+
+			if (iResult == SOCKET_ERROR)
 			{
-				// Connection was closed successfully
-				printf("Connection with client closed.\n");
-				closesocket(acceptedSocket);
+				printf("blocking error");
+				closesocket(acceptedSocket[currentClients]);
+				continue;
 			}
-			else	// There was an error during recv
+
+			printf("client %d done \n", currentClients);
+			currentClients++;
+		}
+		else { //desavanje na klijentu
+			for (int i = 0; i < currentClients; i++)
 			{
-           
-				printf("recv failed with error: %d\n", WSAGetLastError());
-				closesocket(acceptedSocket);
+				if (FD_ISSET(acceptedSocket[i], &readfds))
+				{
+					iResult = recv(acceptedSocket[i], dataBuffer, BUFFER_SIZE, 0);
+
+					if (iResult > 0) { //poruka
+
+						Message* msg = (Message*)dataBuffer;
+						printf(" Message is %s /n", msg->val);
+
+
+					}
+					else if (iResult == 0)
+					{
+						printf("iRes 0 error\n");
+						closesocket(acceptedSocket[i]);
+						Compact(acceptedSocket, i, currentClients);
+					}
+					else if(iResult == SOCKET_ERROR)
+					{
+						printf("Data recv error\n");
+						closesocket(acceptedSocket[i]);
+						Compact(acceptedSocket, i, currentClients);
+					}
+				}
 			}
+		}
 
-		}while(iResult > 0);
+	}
 
-        // Here is where server shutdown loguc could be placed
 
-    } while (true);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  //  do
+  //  {
+		//// Struct for information about connected client
+		//sockaddr_in clientAddr;
+
+		//int clientAddrSize = sizeof(struct sockaddr_in);
+
+  //      // Accept new connections from clients 
+  //      acceptedSocket = accept(listenSocket, (struct sockaddr *)&clientAddr, &clientAddrSize);
+
+		//// Check if accepted socket is valid 
+  //      if (acceptedSocket == INVALID_SOCKET)
+  //      {
+  //          printf("accept failed with error: %d\n", WSAGetLastError());
+  //          closesocket(listenSocket);
+  //          WSACleanup();
+  //          return 1;
+  //      }
+
+		//printf("\nNew client request accepted. Client address: %s : %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+
+		//do
+		//{
+		//	// Receive data until the client shuts down the connection
+		//	iResult = recv(acceptedSocket, dataBuffer, BUFFER_SIZE, 0);
+  //      
+		//	if (iResult > 0)	// Check if message is successfully received
+		//	{
+		//		dataBuffer[iResult] = '\0';
+
+		//		// Log message text
+		//		printf("Client sent: %s.\n", dataBuffer);
+
+		//	}
+		//	else if (iResult == 0)	// Check if shutdown command is received
+		//	{
+		//		// Connection was closed successfully
+		//		printf("Connection with client closed.\n");
+		//		closesocket(acceptedSocket);
+		//	}
+		//	else	// There was an error during recv
+		//	{
+  //         
+		//		printf("recv failed with error: %d\n", WSAGetLastError());
+		//		closesocket(acceptedSocket);
+		//	}
+
+		//}while(iResult > 0);
+
+  //      // Here is where server shutdown loguc could be placed
+
+  //  } while (true);
 
     // Shutdown the connection since we're done
-    iResult = shutdown(acceptedSocket, SD_BOTH);
+ //   iResult = shutdown(acceptedSocket, SD_BOTH);
 
-	// Check if connection is succesfully shut down.
-    if (iResult == SOCKET_ERROR)
-    {
-        printf("shutdown failed with error: %d\n", WSAGetLastError());
-        closesocket(acceptedSocket);
-        WSACleanup();
-        return 1;
-    }
+	//// Check if connection is succesfully shut down.
+ //   if (iResult == SOCKET_ERROR)
+ //   {
+ //       printf("shutdown failed with error: %d\n", WSAGetLastError());
+ //       closesocket(acceptedSocket);
+ //       WSACleanup();
+ //       return 1;
+ //   }
 
-    //Close listen and accepted sockets
-    closesocket(listenSocket);
-    closesocket(acceptedSocket);
+ //   //Close listen and accepted sockets
+ //   closesocket(listenSocket);
+ //   closesocket(acceptedSocket);
 
-	// Deinitialize WSA library
-    WSACleanup();
+	//// Deinitialize WSA library
+ //   WSACleanup();
 
     return 0;
 }
