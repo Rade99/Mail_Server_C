@@ -1,4 +1,6 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "Hash_table.h"
+
 
 #define TABLE_SIZE 10
 #define MAX_SIZE 256

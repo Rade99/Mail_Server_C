@@ -1,14 +1,8 @@
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
-
+#define _CRT_SECURE_NO_WARNINGS
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "conio.h"
-#include "../Common/Hash_table.h"
+
 #include "Client.h"
 
 #pragma comment (lib, "Ws2_32.lib")
@@ -28,8 +22,8 @@ SOCKET Connect(char* queueName) {
 	// Variable used to store function return value
 	int iResult;
 
-	// Buffer we will use to store message
-	char dataBuffer[BUFFER_SIZE];
+	//// Buffer we will use to store message
+	//char dataBuffer[BUFFER_SIZE];
 
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
 	WSADATA wsaData;
@@ -67,10 +61,6 @@ SOCKET Connect(char* queueName) {
 		return NULL;
 	}
 
-
-	
-
-
 	// Send message to server using connected socket
 	iResult = send(connectSocket, queueName, (int)strlen(queueName) + 1, 0);
 	// Check result of send function
@@ -89,14 +79,15 @@ SOCKET Connect(char* queueName) {
 
 int SendMsg(char* queueName, char* message, int messageSize,SOCKET* connectSocket) {
 
-	Message* msg = (Message*)malloc(sizeof(msg));
+	Message* msg = (Message*)malloc(sizeof(Message));
 	strcpy(msg->destination, queueName);
 	strcpy(msg->message_content, message);
-	msg->size_of_message= messageSize;
+	msg->size_of_message= htonl((unsigned long)messageSize);
 
 	// Send message to server using connected socket
-	int iResult = send(*connectSocket, (char*)&msg, sizeof(msg), 0);
+	int iResult = send(*connectSocket, (char*)(msg), sizeof(Message), 0);
 
+	free(msg);
 	return iResult;	
 }
 
@@ -113,7 +104,7 @@ int main()
 	SOCKET connectSocket = Connect(msg);
 	if (connectSocket == NULL)
 	{
-		printf("Shutdown failed with error: %d\n", WSAGetLastError());
+		printf("Error with connectiong to a Server: %d\n", WSAGetLastError());
 		closesocket(connectSocket);
 		WSACleanup();
 		return 1;
@@ -134,7 +125,7 @@ int main()
 
 		if (strcmp(option,"1")==0)
 		{
-			Message* msg = (Message*)malloc(sizeof(msg));
+			Message* msg = (Message*)malloc(sizeof(Message));
 			printf("Enter destination: ");			
 			gets_s(msg->destination, MAX_SIZE_NAME);
 			printf("\n");
@@ -143,7 +134,15 @@ int main()
 			gets_s(tmp, MAX_MESSAGE_SIZE);
 			strcpy(msg->message_content, tmp);
 			msg->size_of_message = strlen(tmp);
-			/*int iResutl = SendMsg()*/
+			int iResult = SendMsg(msg->destination, msg->message_content, msg->size_of_message, &connectSocket);
+			free(msg);
+			if (iResult == SOCKET_ERROR)
+			{
+				printf("send failed with error: %d\n", WSAGetLastError());
+				closesocket(connectSocket);
+				WSACleanup();
+				return 1;
+			}
 		}
 		else if (strcmp(option, "2") == 0)
 		{

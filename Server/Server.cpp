@@ -2,12 +2,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include "conio.h"
+#include "Server.h"
 
 #pragma comment (lib, "Ws2_32.lib")
 #pragma comment (lib, "Mswsock.lib")
@@ -17,9 +12,7 @@
 #define BUFFER_SIZE 256
 #define MAX_SOCKETS 6
 
-struct Message {
-	char val[256];
-};
+int currentClients = 0; 
 
 
 void Compact(SOCKET* acceptedSockets,int startIndex, int currentSize) {
@@ -29,13 +22,97 @@ void Compact(SOCKET* acceptedSockets,int startIndex, int currentSize) {
 }
 
 
-// TCP server that use blocking sockets
-int main() 
+DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 {
-    // Socket used for listening for new clients 
-    SOCKET listenSocket = INVALID_SOCKET;
+	//POBLJSANJE SA thread poolom
+	int iResult;
 
-    // Socket used for communication with client
+
+	TableValue *tv = (TableValue*)malloc(sizeof(TableValue));
+
+	if (tv == NULL) {
+		printf("Not enough RAM!\n");
+		exit(21);
+	}
+
+	bool firstTimeEnter = true;
+	SOCKET* acceptedSocket = (SOCKET *)lpParam;
+	unsigned long mode = 0;
+	iResult = ioctlsocket(*acceptedSocket, FIONBIO, &mode);//blokirajuci rezim
+	Message* msg = (Message*)malloc(sizeof(Message));// ovo msm da cak i ne mora u svom projasu sam video da sam samo stavio msg bez alociranja
+	char username[MAX_SIZE_NAME];
+
+	if (msg == NULL) {
+		printf("Not enough RAM!\n");
+		exit(21);
+	}
+
+	while (true)
+	{
+		if (firstTimeEnter == true)// za prvu porukicu koja je username
+		{
+			
+			iResult = recv(*acceptedSocket, username, MAX_SIZE_NAME, 0);
+			tv = hash_table_retreive(username);
+			//to do validacija na klijentu da li je bas ime od 14+1 karakter 
+			if (tv == NULL)
+			{
+				hash_table_insert_client(username);
+			}
+		
+			firstTimeEnter = false;
+		}
+
+		// Receive data until the client shuts down the connection
+		iResult = recv(*acceptedSocket, (char*)msg, sizeof(Message), 0);
+
+		if (iResult > 0)	// Check if message is successfully received
+		{
+			//dataBuffer[iResult] = '\0';
+			msg->size_of_message = ntohl((unsigned long)msg->size_of_message);
+			// Log message text
+			printf("Client sent: %s %s %d.\n", msg->destination, msg->message_content, msg->size_of_message);
+			insert_message_in(username, *msg, "out");
+			print_table();
+
+		}
+		else if (iResult == 0)	// Check if shutdown command is received
+		{
+			// Connection was closed successfully
+			printf("Connection with client closed.\n");
+			currentClients--;// deljena promenljiva
+			free(msg);
+			free(tv);
+			closesocket(*acceptedSocket);
+			
+			return 0;
+		}
+		else	// There was an error during recv
+		{
+
+			printf("recv failed with error: %d\n", WSAGetLastError());
+			currentClients--;
+			free(msg);
+			free(tv);
+			closesocket(*acceptedSocket);
+			return 0;
+		}
+
+	}
+	
+}
+
+
+// TCP server that use blocking sockets
+int main()
+{
+	//Initialize HashTable
+	init_hash_table();
+
+	// Socket used for listening for new clients 
+	SOCKET listenSocket = INVALID_SOCKET;
+
+	// Socket used for communication with client
 	SOCKET acceptedSocket[MAX_SOCKETS];
 
 	for (int i = 0; i < MAX_SOCKETS; i++)
@@ -43,55 +120,55 @@ int main()
 		acceptedSocket[i] = INVALID_SOCKET;
 	}
 
-    // Variable used to store function return value
-    int iResult;
+	// Variable used to store function return value
+	int iResult;
 
-    // Buffer used for storing incoming data
-    char dataBuffer[BUFFER_SIZE];
-    
+	//// Buffer used for storing incoming data
+	//char dataBuffer[BUFFER_SIZE];
+
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
-    WSADATA wsaData;
+	WSADATA wsaData;
 
 	// Initialize windows sockets library for this process
-    if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0)
-    {
-        printf("WSAStartup failed with error: %d\n", WSAGetLastError());
-        return 1;
-    }
-   
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
+	{
+		printf("WSAStartup failed with error: %d\n", WSAGetLastError());
+		return 1;
+	}
+
 
 	// Initialize serverAddress structure used by bind
 	sockaddr_in serverAddress;
-    memset((char*)&serverAddress,0,sizeof(serverAddress));
-    serverAddress.sin_family = AF_INET;				// IPv4 address family
-    serverAddress.sin_addr.s_addr = INADDR_ANY;		// Use all available addresses
-    serverAddress.sin_port = htons(SERVER_PORT);	// Use specific port
+	memset((char*)&serverAddress, 0, sizeof(serverAddress));
+	serverAddress.sin_family = AF_INET;				// IPv4 address family
+	serverAddress.sin_addr.s_addr = INADDR_ANY;		// Use all available addresses
+	serverAddress.sin_port = htons(SERVER_PORT);	// Use specific port
 
 
-    // Create a SOCKET for connecting to server
-    listenSocket = socket(AF_INET,      // IPv4 address family
-                          SOCK_STREAM,  // Stream socket
-                          IPPROTO_TCP); // TCP protocol
+	// Create a SOCKET for connecting to server
+	listenSocket = socket(AF_INET,      // IPv4 address family
+		SOCK_STREAM,  // Stream socket
+		IPPROTO_TCP); // TCP protocol
 
-	// Check if socket is successfully created
-    if (listenSocket == INVALID_SOCKET)
-    {
-        printf("socket failed with error: %ld\n", WSAGetLastError());
-        WSACleanup();
-        return 1;
-    }
+// Check if socket is successfully created
+	if (listenSocket == INVALID_SOCKET)
+	{
+		printf("socket failed with error: %ld\n", WSAGetLastError());
+		WSACleanup();
+		return 1;
+	}
 
-    // Setup the TCP listening socket - bind port number and local address to socket
-	iResult = bind(listenSocket,(struct sockaddr*) &serverAddress,sizeof(serverAddress));
+	// Setup the TCP listening socket - bind port number and local address to socket
+	iResult = bind(listenSocket, (struct sockaddr*) &serverAddress, sizeof(serverAddress));
 
 	// Check if socket is successfully binded to address and port from sockaddr_in structure
-    if (iResult == SOCKET_ERROR)
-    {
-        printf("bind failed with error: %d\n", WSAGetLastError());
-        closesocket(listenSocket);
-        WSACleanup();
-        return 1;
-    }
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("bind failed with error: %d\n", WSAGetLastError());
+		closesocket(listenSocket);
+		WSACleanup();
+		return 1;
+	}
 
 	unsigned long mode = 1;
 	iResult = ioctlsocket(listenSocket, FIONBIO, &mode);
@@ -102,15 +179,15 @@ int main()
 		return -1;
 	}
 
-    // Set listenSocket in listening mode
-    iResult = listen(listenSocket, SOMAXCONN);
-    if (iResult == SOCKET_ERROR)
-    {
-        printf("listen failed with error: %d\n", WSAGetLastError());
-        closesocket(listenSocket);
-        WSACleanup();
-        return 1;
-    }
+	// Set listenSocket in listening mode
+	iResult = listen(listenSocket, SOMAXCONN);
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("listen failed with error: %d\n", WSAGetLastError());
+		closesocket(listenSocket);
+		WSACleanup();
+		return 1;
+	}
 
 	printf("Server socket is set to listening mode. Waiting for new connection requests.\n");
 
@@ -119,14 +196,14 @@ int main()
 	timeVal.tv_sec = 1;
 	timeVal.tv_usec = 0;
 
-	int currentClients = 0;
 
 	sockaddr_in client;
 	int size = sizeof(client);
 
 	FD_ZERO(&readfds);
 
-	while (true) {
+	while (true)
+	{
 
 		if (currentClients != MAX_SOCKETS)
 		{
@@ -151,7 +228,7 @@ int main()
 			WSACleanup();
 			return -1;
 		}
-		else if(FD_ISSET(listenSocket,&readfds)){ //zahtev za konekciju
+		else if (FD_ISSET(listenSocket, &readfds)) { //zahtev za konekciju
 			printf("Client \n");
 			acceptedSocket[currentClients] = accept(listenSocket, (SOCKADDR*)&client, &size);
 
@@ -162,49 +239,57 @@ int main()
 				continue;
 			}
 
-			iResult = ioctlsocket(acceptedSocket[currentClients], FIONBIO, &mode);
+			DWORD communicaton;//nemam pojma cemu sluzi
+			HANDLE threadHandler;
+			threadHandler = CreateThread(NULL, 0, &Communication_with_client, &acceptedSocket[currentClients], 0, &communicaton);
+			if (threadHandler == NULL)
+			{
+				printf("Error with creating a thread\n");
+			}
+
+			/*iResult = ioctlsocket(acceptedSocket[currentClients], FIONBIO, &mode);
 
 			if (iResult == SOCKET_ERROR)
 			{
 				printf("blocking error");
 				closesocket(acceptedSocket[currentClients]);
 				continue;
-			}
+			}*/
 
 			printf("client %d done \n", currentClients);
 			currentClients++;
 		}
-		else { //desavanje na klijentu
-			for (int i = 0; i < currentClients; i++)
-			{
-				if (FD_ISSET(acceptedSocket[i], &readfds))
-				{
-					iResult = recv(acceptedSocket[i], dataBuffer, BUFFER_SIZE, 0);
+		//else { //desavanje na klijentu
+		//	for (int i = 0; i < currentClients; i++)
+		//	{
+		//		if (FD_ISSET(acceptedSocket[i], &readfds))
+		//		{
+		//			iResult = recv(acceptedSocket[i], dataBuffer, BUFFER_SIZE, 0);
 
-					if (iResult > 0) { //poruka
+		//			if (iResult > 0) { //poruka
 
-						Message* msg = (Message*)dataBuffer;
-						printf(" Message is %s /n", msg->val);
+		//				Message* msg = (Message*)dataBuffer;
+		//				printf(" Message is %s /n", msg->val);
 
 
-					}
-					else if (iResult == 0)
-					{
-						printf("iRes 0 error\n");
-						closesocket(acceptedSocket[i]);
-						Compact(acceptedSocket, i, currentClients);
-					}
-					else if(iResult == SOCKET_ERROR)
-					{
-						printf("Data recv error\n");
-						closesocket(acceptedSocket[i]);
-						Compact(acceptedSocket, i, currentClients);
-					}
-				}
-			}
-		}
-
+		//			}
+		//			else if (iResult == 0)
+		//			{
+		//				printf("iRes 0 error\n");
+		//				closesocket(acceptedSocket[i]);
+		//				Compact(acceptedSocket, i, currentClients);
+		//			}
+		//			else if(iResult == SOCKET_ERROR)
+		//			{
+		//				printf("Data recv error\n");
+		//				closesocket(acceptedSocket[i]);
+		//				Compact(acceptedSocket, i, currentClients);
+		//			}
+		//		}
+		//	}
 	}
+}
+	
 
 
 
@@ -294,5 +379,3 @@ int main()
 	//// Deinitialize WSA library
  //   WSACleanup();
 
-    return 0;
-}
