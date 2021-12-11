@@ -18,6 +18,7 @@ void Enqueue(QueueNode** head, struct Message message)
 	strcpy(newNode->message.destination, message.destination);
 	strcpy(newNode->message.message_content, message.message_content);
 	newNode->message.size_of_message = message.size_of_message; // koja je fora sa ovim poljem
+	strcpy(newNode->message.source, message.source);
 
 	newNode->next = NULL;
 
@@ -52,6 +53,7 @@ Message* Dequeue(QueueNode** head)// nije do kraja
 
 	strcpy(ret->destination, p->message.destination);
 	strcpy(ret->message_content, p->message.message_content);
+	strcpy(ret->source, p->message.source);
 	ret->size_of_message = p->message.size_of_message;
 
 	*head = p->next;// glava je sada sledeci

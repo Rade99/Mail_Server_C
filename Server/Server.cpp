@@ -58,18 +58,24 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 	SOCKET* acceptedSocket = (SOCKET *)lpParam;
 	unsigned long mode = 0;
 	iResult = ioctlsocket(*acceptedSocket, FIONBIO, &mode);//blokirajuci rezim
-	Message* msg = (Message*)malloc(sizeof(Message));// ovo msm da cak i ne mora u svom projasu sam video da sam samo stavio msg bez alociranja
+	//Message* msg = (Message*)malloc(sizeof(Message));// ovo msm da cak i ne mora u svom projasu sam video da sam samo stavio msg bez alociranja
 	char username[MAX_SIZE_NAME];
 	DWORD transfer;
 	HANDLE threadHandler=NULL; // bez ovoga error
 
-	if (msg == NULL) {
+	/*if (msg == NULL) {
 		printf("Not enough RAM!\n");
 		exit(21);
-	}
+	}*/
 
 	while (true)
 	{
+
+		Message* msg = (Message*)malloc(sizeof(Message));
+		if (msg == NULL) {
+		printf("Not enough RAM!\n");
+		exit(21);
+		}
 		if (firstTimeEnter == true)// za prvu porukicu koja je username
 		{
 			
@@ -96,21 +102,68 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 
 		if (iResult > 0)	// Check if message is successfully received
 		{
-			//dataBuffer[iResult] = '\0';
-			msg->size_of_message = ntohl((unsigned long)msg->size_of_message);
-			strcpy(msg->source, username);
-			// Log message text
-			printf("Client %s sent: %s %s %d.\n",msg->source, msg->destination, msg->message_content, msg->size_of_message);
-			insert_message_in(username, *msg, "out");
+			bool writeDB = true;
+			if (strcmp(msg->destination, "server") == 0 && strcmp(msg->message_content, "send my inbox") == 0)
+			{
+				TableValue* tv = hash_table_retreive(username);
+				while (true) {
+					Message* msgSend = Dequeue(&(tv->inbox_start));
+					if (msgSend == NULL)
+					{
+						Message* endMsg = (Message*)malloc(sizeof(Message));
+						strcpy(endMsg->destination, "client");
+						strcpy(endMsg->source, "mail server");
+						strcpy(endMsg->message_content, "all done");
+
+
+						int iResult = send(*acceptedSocket, (char*)(endMsg), sizeof(Message), 0);
+						if (iResult == SOCKET_ERROR)
+						{
+							printf("send failed with error: %d\n", WSAGetLastError());
+							closesocket(*acceptedSocket);
+							WSACleanup();
+							return 1;
+						}
+
+						free(endMsg);
+						free(msgSend);
+						writeDB = false;
+						break;
+					}
+						
+
+					int iResult = send(*acceptedSocket, (char*)(msgSend), sizeof(Message), 0);
+					if (iResult == SOCKET_ERROR)
+					{
+						printf("send failed with error: %d\n", WSAGetLastError());
+						closesocket(*acceptedSocket);
+						WSACleanup();
+						return 1;
+					}
+				}				
+			}
+
+			if (writeDB)
+			{
+				//dataBuffer[iResult] = '\0';
+				msg->size_of_message = ntohl((unsigned long)msg->size_of_message);
+				strcpy(msg->source, username);
+				// Log message text
+				printf("Client %s sent: %s %s %d.\n", msg->source, msg->destination, msg->message_content, msg->size_of_message);
+				insert_message_in(username, *msg, "out");
+			}
+			
 
 		}
 		else if (iResult == 0)	// Check if shutdown command is received
 		{
 			// Connection was closed successfully
 			printf("Connection with client closed.\n");
+			
 			currentClients--;// deljena promenljiva
 			free(msg);
 			free(tv);
+			
 			closesocket(*acceptedSocket);
 		    CloseHandle(threadHandler);
 			
@@ -128,10 +181,11 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			return 0;
 		}
 
+		free(msg);
+
 	}
 	
 }
-
 
 // TCP server that use blocking sockets
 int main()
@@ -248,7 +302,7 @@ int main()
 		iResult = select(0, &readfds, NULL, NULL, &timeVal);
 
 		if (iResult == 0) {
-			printf("No changes \n");
+			//printf("No changes \n");
 			continue;
 		}
 		else if (iResult == SOCKET_ERROR)
@@ -277,120 +331,12 @@ int main()
 				printf("Error with creating a thread\n");
 			}
 
-			/*iResult = ioctlsocket(acceptedSocket[currentClients], FIONBIO, &mode);
-
-			if (iResult == SOCKET_ERROR)
-			{
-				printf("blocking error");
-				closesocket(acceptedSocket[currentClients]);
-				continue;
-			}*/
-
-			printf("client %d done \n", currentClients);
+			/*printf("client %d done \n", currentClients);*/
 			currentClients++;
 		}
-		//else { //desavanje na klijentu
-		//	for (int i = 0; i < currentClients; i++)
-		//	{
-		//		if (FD_ISSET(acceptedSocket[i], &readfds))
-		//		{
-		//			iResult = recv(acceptedSocket[i], dataBuffer, BUFFER_SIZE, 0);
-
-		//			if (iResult > 0) { //poruka
-
-		//				Message* msg = (Message*)dataBuffer;
-		//				printf(" Message is %s /n", msg->val);
-
-
-		//			}
-		//			else if (iResult == 0)
-		//			{
-		//				printf("iRes 0 error\n");
-		//				closesocket(acceptedSocket[i]);
-		//				Compact(acceptedSocket, i, currentClients);
-		//			}
-		//			else if(iResult == SOCKET_ERROR)
-		//			{
-		//				printf("Data recv error\n");
-		//				closesocket(acceptedSocket[i]);
-		//				Compact(acceptedSocket, i, currentClients);
-		//			}
-		//		}
-		//	}
+		
 	}
-}
-	
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  //  do
-  //  {
-		//// Struct for information about connected client
-		//sockaddr_in clientAddr;
-
-		//int clientAddrSize = sizeof(struct sockaddr_in);
-
-  //      // Accept new connections from clients 
-  //      acceptedSocket = accept(listenSocket, (struct sockaddr *)&clientAddr, &clientAddrSize);
-
-		//// Check if accepted socket is valid 
-  //      if (acceptedSocket == INVALID_SOCKET)
-  //      {
-  //          printf("accept failed with error: %d\n", WSAGetLastError());
-  //          closesocket(listenSocket);
-  //          WSACleanup();
-  //          return 1;
-  //      }
-
-		//printf("\nNew client request accepted. Client address: %s : %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
-
-		//do
-		//{
-		//	// Receive data until the client shuts down the connection
-		//	iResult = recv(acceptedSocket, dataBuffer, BUFFER_SIZE, 0);
-  //      
-		//	if (iResult > 0)	// Check if message is successfully received
-		//	{
-		//		dataBuffer[iResult] = '\0';
-
-		//		// Log message text
-		//		printf("Client sent: %s.\n", dataBuffer);
-
-		//	}
-		//	else if (iResult == 0)	// Check if shutdown command is received
-		//	{
-		//		// Connection was closed successfully
-		//		printf("Connection with client closed.\n");
-		//		closesocket(acceptedSocket);
-		//	}
-		//	else	// There was an error during recv
-		//	{
-  //         
-		//		printf("recv failed with error: %d\n", WSAGetLastError());
-		//		closesocket(acceptedSocket);
-		//	}
-
-		//}while(iResult > 0);
-
-  //      // Here is where server shutdown loguc could be placed
-
-  //  } while (true);
-
-    // Shutdown the connection since we're done
+	// Shutdown the connection since we're done
  //   iResult = shutdown(acceptedSocket, SD_BOTH);
 
 	//// Check if connection is succesfully shut down.
@@ -402,10 +348,23 @@ int main()
  //       return 1;
  //   }
 
- //   //Close listen and accepted sockets
- //   closesocket(listenSocket);
- //   closesocket(acceptedSocket);
 
-	//// Deinitialize WSA library
- //   WSACleanup();
 
+	   //Close listen and accepted sockets
+    closesocket(listenSocket);
+	for (int i = 0; i < currentClients; i++)
+	{
+		closesocket(acceptedSocket[i]);
+	}
+   
+	free_hash();
+	// Deinitialize WSA library
+    WSACleanup();
+
+}
+	
+
+
+
+
+ 
