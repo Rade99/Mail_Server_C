@@ -167,7 +167,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			closesocket(*acceptedSocket);
 		    CloseHandle(threadHandler);
 			
-			return 0;
+			continue;
 		}
 		else	// There was an error during recv
 		{
