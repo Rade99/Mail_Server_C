@@ -98,8 +98,9 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 		{
 			//dataBuffer[iResult] = '\0';
 			msg->size_of_message = ntohl((unsigned long)msg->size_of_message);
+			strcpy(msg->source, username);
 			// Log message text
-			printf("Client sent: %s %s %d.\n", msg->destination, msg->message_content, msg->size_of_message);
+			printf("Client %s sent: %s %s %d.\n",msg->source, msg->destination, msg->message_content, msg->size_of_message);
 			insert_message_in(username, *msg, "out");
 
 		}

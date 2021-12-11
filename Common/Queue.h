@@ -11,6 +11,7 @@ typedef struct Message {
 	char message_content[MAX_MESSAGE_SIZE];
 	int size_of_message;
 	char destination[MAX_SIZE_NAME];
+	char source[MAX_SIZE_NAME];
 }Message;
 
 typedef struct QueueNode {

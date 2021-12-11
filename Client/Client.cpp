@@ -86,6 +86,13 @@ int SendMsg(char* queueName, char* message, int messageSize,SOCKET* connectSocke
 
 	// Send message to server using connected socket
 	int iResult = send(*connectSocket, (char*)(msg), sizeof(Message), 0);
+	if (iResult == SOCKET_ERROR)
+	{
+		printf("send failed with error: %d\n", WSAGetLastError());
+		closesocket(*connectSocket);
+		WSACleanup();
+		return 1;
+	}
 
 	free(msg);
 	return iResult;	
@@ -147,6 +154,46 @@ int main()
 		else if (strcmp(option, "2") == 0)
 		{
 			//primi sa servera
+			char dataBuffer[BUFFER_SIZE];
+			iResult = recv(connectSocket, dataBuffer, BUFFER_SIZE, 0);
+			
+
+			if (iResult > 0)	// Check if message is successfully received
+			{
+				int numberOfMessages = atoi(dataBuffer);
+				if (numberOfMessages == 0)
+				{
+					printf("there aren't any new messages in Inbox\n");
+					continue;
+				}
+				else
+				{
+					Message* msg = (Message*)malloc(sizeof(Message));
+					for (int i = 0; i < numberOfMessages; i++)
+					{
+						iResult = recv(connectSocket, (char*)msg, sizeof(Message), 0);
+						printf("MESSAGE\n\n");
+						printf("FROM: %s\n TEXT: %s\n\n",msg->source,msg->message_content);
+					}
+					free(msg);
+				}
+			
+			}
+			else if (iResult == 0)	// Check if shutdown command is received
+			{
+				// Connection was closed successfully
+				printf("Connection with server closed.\n");
+				// da li treba da brejkuje i sve lepo zatvori
+
+				break;
+			}
+			else	// There was an error during recv
+			{
+
+				printf("recv failed with error: %d\n", WSAGetLastError());
+				break;
+			}
+
 		}
 		else if (strcmp(option, "3") == 0)//gasi
 		{
