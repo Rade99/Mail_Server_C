@@ -43,7 +43,7 @@ Message* Dequeue(QueueNode** head)// nije do kraja
 		return NULL;//red je prazan nije moguc dequeue
 	}
 
-	Message* ret = (Message*)malloc(sizeof(struct Message));
+	Message* ret = (Message*)malloc(sizeof(struct Message));//ovde nikada nije oslovodjena memorija
 	if (ret == NULL) {
 		printf("Not enough RAM!\n");
 		exit(21);

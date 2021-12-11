@@ -1,3 +1,4 @@
+#define _CRT_SECURE_NO_WARNINGS
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 
 #define WIN32_LEAN_AND_MEAN
@@ -21,12 +22,30 @@ void Compact(SOCKET* acceptedSockets,int startIndex, int currentSize) {
 	}
 }
 
+DWORD WINAPI Move_from_outbox_to_inbox(LPVOID lpParam)
+{
+	char username[MAX_SIZE_NAME];
+	strcpy(username, (char*)lpParam);
+	TableValue* tv = hash_table_retreive(username);
+	while (true)
+	{
+		Message* msg = Dequeue(&(tv->outbox_start));//mozda da napravimo neki get message u hash tablu
+		if (msg == NULL)
+		{
+			Sleep(1500);
+			continue;
+		}
+		insert_message_in(msg->destination, *msg, "in");
+		free(msg);
+		print_table();
+	}
 
+}
 DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 {
 	//POBLJSANJE SA thread poolom
 	int iResult;
-
+	
 
 	TableValue *tv = (TableValue*)malloc(sizeof(TableValue));
 
@@ -41,6 +60,8 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 	iResult = ioctlsocket(*acceptedSocket, FIONBIO, &mode);//blokirajuci rezim
 	Message* msg = (Message*)malloc(sizeof(Message));// ovo msm da cak i ne mora u svom projasu sam video da sam samo stavio msg bez alociranja
 	char username[MAX_SIZE_NAME];
+	DWORD transfer;
+	HANDLE threadHandler=NULL; // bez ovoga error
 
 	if (msg == NULL) {
 		printf("Not enough RAM!\n");
@@ -60,6 +81,13 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 				hash_table_insert_client(username);
 			}
 		
+			
+			threadHandler = CreateThread(NULL, 0, &Move_from_outbox_to_inbox, username, 0, &transfer);
+			if (threadHandler == NULL)
+			{
+				printf("Error with creating a thread for transfering from outbox to inbox\n");
+			}
+
 			firstTimeEnter = false;
 		}
 
@@ -73,7 +101,6 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			// Log message text
 			printf("Client sent: %s %s %d.\n", msg->destination, msg->message_content, msg->size_of_message);
 			insert_message_in(username, *msg, "out");
-			print_table();
 
 		}
 		else if (iResult == 0)	// Check if shutdown command is received
@@ -84,6 +111,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			free(msg);
 			free(tv);
 			closesocket(*acceptedSocket);
+		    CloseHandle(threadHandler);
 			
 			return 0;
 		}
@@ -95,6 +123,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			free(msg);
 			free(tv);
 			closesocket(*acceptedSocket);
+			CloseHandle(threadHandler);
 			return 0;
 		}
 
