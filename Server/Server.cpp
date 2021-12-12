@@ -45,6 +45,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 {
 	//POBLJSANJE SA thread poolom
 	int iResult;
+	DWORD exitCode = 2;
 	
 
 	TableValue *tv = (TableValue*)malloc(sizeof(TableValue));
@@ -163,11 +164,13 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;// deljena promenljiva
 			free(msg);
 			free(tv);
+			CloseHandle(threadHandler);
+			ExitThread(exitCode);
+			//closesocket(*acceptedSocket);
+		    
 			
-			closesocket(*acceptedSocket);
-		    CloseHandle(threadHandler);
-			
-			continue;
+			//return 0;
+			//continue
 		}
 		else	// There was an error during recv
 		{
@@ -176,9 +179,10 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;
 			free(msg);
 			free(tv);
-			closesocket(*acceptedSocket);
+			//closesocket(*acceptedSocket);
 			CloseHandle(threadHandler);
-			return 0;
+			ExitThread(exitCode);
+			//return 0;
 		}
 
 		free(msg);
