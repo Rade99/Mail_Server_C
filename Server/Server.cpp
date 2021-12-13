@@ -35,7 +35,12 @@ DWORD WINAPI Move_from_outbox_to_inbox(LPVOID lpParam)
 			Sleep(1500);
 			continue;
 		}
-		insert_message_in(msg->destination, *msg, "in");
+		if (hash_table_retreive(msg->destination) != NULL)
+		{
+			insert_message_in(msg->destination, *msg, "in");
+		}
+
+		
 		free(msg);
 		print_table();
 	}
@@ -151,6 +156,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 				strcpy(msg->source, username);
 				// Log message text
 				printf("Client %s sent: %s %s %d.\n", msg->source, msg->destination, msg->message_content, msg->size_of_message);
+
 				insert_message_in(username, *msg, "out");
 			}
 			
@@ -164,9 +170,15 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;// deljena promenljiva
 			free(msg);
 			free(tv);
-			CloseHandle(threadHandler);
-			ExitThread(exitCode);
+			if (SOCKET_ERROR == closesocket(*acceptedSocket))
+			{
+				printf("error with closing socket");
+			}
 			//closesocket(*acceptedSocket);
+			TerminateThread(threadHandler, exitCode);
+			ExitThread(exitCode);
+		
+			
 		    
 			
 			//return 0;
@@ -179,13 +191,16 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;
 			free(msg);
 			free(tv);
+			if (SOCKET_ERROR == closesocket(*acceptedSocket))
+			{
+				printf("error with closing socket");
+			}
 			//closesocket(*acceptedSocket);
-			CloseHandle(threadHandler);
+			TerminateThread(threadHandler, exitCode);
 			ExitThread(exitCode);
-			//return 0;
 		}
 
-		free(msg);
+		//free(msg);
 
 	}
 	
@@ -298,10 +313,10 @@ int main()
 			FD_SET(listenSocket, &readfds);
 		}
 
-		for (int i = 0; i < currentClients; i++)
+		/*for (int i = 0; i < currentClients; i++)//OVO PRAVI PROBLEM!!! SERVER SE NE ZATVORI NEGO ZABLOKIRA RETURN JE 1 ILI -1
 		{
 			FD_SET(acceptedSocket[i], &readfds);
-		}
+		}*/
 
 		iResult = select(0, &readfds, NULL, NULL, &timeVal);
 
