@@ -146,7 +146,9 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 						WSACleanup();
 						return 1;
 					}
-				}				
+				}	
+
+				free(msg);
 			}
 
 			if (writeDB)
@@ -170,19 +172,10 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;// deljena promenljiva
 			free(msg);
 			free(tv);
-			if (SOCKET_ERROR == closesocket(*acceptedSocket))
-			{
-				printf("error with closing socket");
-			}
-			//closesocket(*acceptedSocket);
+			closesocket(*acceptedSocket);
 			TerminateThread(threadHandler, exitCode);
 			ExitThread(exitCode);
 		
-			
-		    
-			
-			//return 0;
-			//continue
 		}
 		else	// There was an error during recv
 		{
@@ -191,17 +184,12 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;
 			free(msg);
 			free(tv);
-			if (SOCKET_ERROR == closesocket(*acceptedSocket))
-			{
-				printf("error with closing socket");
-			}
-			//closesocket(*acceptedSocket);
+			closesocket(*acceptedSocket);
 			TerminateThread(threadHandler, exitCode);
 			ExitThread(exitCode);
 		}
 
 		//free(msg);
-
 	}
 	
 }
@@ -355,19 +343,6 @@ int main()
 		}
 		
 	}
-	// Shutdown the connection since we're done
- //   iResult = shutdown(acceptedSocket, SD_BOTH);
-
-	//// Check if connection is succesfully shut down.
- //   if (iResult == SOCKET_ERROR)
- //   {
- //       printf("shutdown failed with error: %d\n", WSAGetLastError());
- //       closesocket(acceptedSocket);
- //       WSACleanup();
- //       return 1;
- //   }
-
-
 
 	   //Close listen and accepted sockets
     closesocket(listenSocket);
