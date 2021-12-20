@@ -9,17 +9,103 @@
 #pragma comment (lib, "Mswsock.lib")
 #pragma comment (lib, "AdvApi32.lib")
 
+#define MAX_SOCKETS 6
 #define SERVER_PORT 27016
 #define BUFFER_SIZE 256
-#define MAX_SOCKETS 6
+
 
 int currentClients = 0; 
+int ConnectionThreadFlag = 0;
 
 
 void Compact(SOCKET* acceptedSockets,int startIndex, int currentSize) {
 	for (int i = startIndex; i < currentSize - 1; i++) {
 		acceptedSockets[i] = acceptedSockets[i + 1];
 	}
+}
+
+
+DWORD WINAPI ConnectionThread(LPVOID lpParam)
+{
+	SOCKET* listenSocket = (SOCKET *)lpParam;
+	// Socket used for communication with client
+	SOCKET acceptedSocket[MAX_SOCKETS];
+
+	DWORD exitCode = 2;
+
+	for (int i = 0; i < MAX_SOCKETS; i++)
+	{
+		acceptedSocket[i] = INVALID_SOCKET;
+	}
+
+	fd_set readfds;
+	timeval timeVal;
+	timeVal.tv_sec = 1;
+	timeVal.tv_usec = 0;
+
+
+	sockaddr_in client;
+	int size = sizeof(client);
+
+	FD_ZERO(&readfds);
+
+	while (true)
+	{
+
+		if (currentClients != MAX_SOCKETS)
+		{
+			FD_SET(*listenSocket, &readfds);
+		}
+
+		/*for (int i = 0; i < currentClients; i++)//OVO PRAVI PROBLEM!!! SERVER SE NE ZATVORI NEGO ZABLOKIRA RETURN JE 1 ILI -1
+		{
+			FD_SET(acceptedSocket[i], &readfds);
+		}*/
+
+		int iResult = select(0, &readfds, NULL, NULL, &timeVal);
+
+		if (iResult == 0) {
+			//printf("No changes \n");
+			continue;
+		}
+		else if (iResult == SOCKET_ERROR)
+		{
+			printf("error");
+			closesocket(*listenSocket);
+			WSACleanup();
+			return -1;
+		}
+		else if (FD_ISSET(*listenSocket, &readfds)) { //zahtev za konekciju
+			printf("Client \n");
+			acceptedSocket[currentClients] = accept(*listenSocket, (SOCKADDR*)&client, &size);
+			//	acceptedSocket[currentClients]
+			if (acceptedSocket[currentClients] == INVALID_SOCKET)
+			{
+				closesocket(acceptedSocket[currentClients]);
+				printf("Client connection error %d", currentClients);
+				continue;
+			}
+
+			DWORD communicaton;//nemam pojma cemu sluzi
+			HANDLE threadHandler;
+			threadHandler = CreateThread(NULL, 0, &Communication_with_client, &acceptedSocket[currentClients], 0, &communicaton);
+			if (threadHandler == NULL)
+			{
+				printf("Error with creating a thread\n");
+			}
+
+			/*printf("client %d done \n", currentClients);*/
+			currentClients++;
+		}
+
+	}
+	//Nikada nece stici ovde
+	for (int i = 0; i < currentClients; i++)
+	{
+		closesocket(acceptedSocket[i]);
+	}
+	ConnectionThreadFlag = -1;
+	ExitThread(exitCode);
 }
 
 DWORD WINAPI Move_from_outbox_to_inbox(LPVOID lpParam)
@@ -35,10 +121,13 @@ DWORD WINAPI Move_from_outbox_to_inbox(LPVOID lpParam)
 			Sleep(1500);
 			continue;
 		}
-		if (hash_table_retreive(msg->destination) != NULL)
+
+		if (hash_table_retreive(msg->destination) == NULL)
 		{
-			insert_message_in(msg->destination, *msg, "in");
+			hash_table_insert_client(msg->destination);
 		}
+
+		insert_message_in(msg->destination, *msg, "in");
 
 		
 		free(msg);
@@ -146,9 +235,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 						WSACleanup();
 						return 1;
 					}
-				}	
-
-				free(msg);
+				}				
 			}
 
 			if (writeDB)
@@ -172,10 +259,19 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;// deljena promenljiva
 			free(msg);
 			free(tv);
-			closesocket(*acceptedSocket);
+			if (SOCKET_ERROR == closesocket(*acceptedSocket))
+			{
+				printf("error with closing socket");
+			}
+			//closesocket(*acceptedSocket);
 			TerminateThread(threadHandler, exitCode);
 			ExitThread(exitCode);
 		
+			
+		    
+			
+			//return 0;
+			//continue
 		}
 		else	// There was an error during recv
 		{
@@ -184,12 +280,17 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			currentClients--;
 			free(msg);
 			free(tv);
-			closesocket(*acceptedSocket);
+			if (SOCKET_ERROR == closesocket(*acceptedSocket))
+			{
+				printf("error with closing socket");
+			}
+			//closesocket(*acceptedSocket);
 			TerminateThread(threadHandler, exitCode);
 			ExitThread(exitCode);
 		}
 
 		//free(msg);
+
 	}
 	
 }
@@ -203,13 +304,7 @@ int main()
 	// Socket used for listening for new clients 
 	SOCKET listenSocket = INVALID_SOCKET;
 
-	// Socket used for communication with client
-	SOCKET acceptedSocket[MAX_SOCKETS];
 
-	for (int i = 0; i < MAX_SOCKETS; i++)
-	{
-		acceptedSocket[i] = INVALID_SOCKET;
-	}
 
 	// Variable used to store function return value
 	int iResult;
@@ -282,74 +377,44 @@ int main()
 
 	printf("Server socket is set to listening mode. Waiting for new connection requests.\n");
 
-	fd_set readfds;
-	timeval timeVal;
-	timeVal.tv_sec = 1;
-	timeVal.tv_usec = 0;
-
-
-	sockaddr_in client;
-	int size = sizeof(client);
-
-	FD_ZERO(&readfds);
-
-	while (true)
+	DWORD connection;//nemam pojma cemu sluzi
+	HANDLE threadHandler;
+	threadHandler = CreateThread(NULL, 0, &ConnectionThread, &listenSocket, 0, &connection);
+	if (threadHandler == NULL)
 	{
-
-		if (currentClients != MAX_SOCKETS)
-		{
-			FD_SET(listenSocket, &readfds);
-		}
-
-		/*for (int i = 0; i < currentClients; i++)//OVO PRAVI PROBLEM!!! SERVER SE NE ZATVORI NEGO ZABLOKIRA RETURN JE 1 ILI -1
-		{
-			FD_SET(acceptedSocket[i], &readfds);
-		}*/
-
-		iResult = select(0, &readfds, NULL, NULL, &timeVal);
-
-		if (iResult == 0) {
-			//printf("No changes \n");
-			continue;
-		}
-		else if (iResult == SOCKET_ERROR)
-		{
-			printf("error");
-			closesocket(listenSocket);
-			WSACleanup();
-			return -1;
-		}
-		else if (FD_ISSET(listenSocket, &readfds)) { //zahtev za konekciju
-			printf("Client \n");
-			acceptedSocket[currentClients] = accept(listenSocket, (SOCKADDR*)&client, &size);
-
-			if (acceptedSocket[currentClients] == INVALID_SOCKET)
-			{
-				closesocket(acceptedSocket[currentClients]);
-				printf("Client connection error %d", currentClients);
-				continue;
-			}
-
-			DWORD communicaton;//nemam pojma cemu sluzi
-			HANDLE threadHandler;
-			threadHandler = CreateThread(NULL, 0, &Communication_with_client, &acceptedSocket[currentClients], 0, &communicaton);
-			if (threadHandler == NULL)
-			{
-				printf("Error with creating a thread\n");
-			}
-
-			/*printf("client %d done \n", currentClients);*/
-			currentClients++;
-		}
-		
+		printf("Error with creating a thread\n");
 	}
+
+	LPDWORD exitCode = NULL;
+
+		while(true)
+		{
+
+			if (ConnectionThreadFlag == -1)
+			{
+				break;
+			}
+	
+		}
+		CloseHandle(threadHandler);
+
+	// Shutdown the connection since we're done
+ //   iResult = shutdown(acceptedSocket, SD_BOTH);
+
+	//// Check if connection is succesfully shut down.
+ //   if (iResult == SOCKET_ERROR)
+ //   {
+ //       printf("shutdown failed with error: %d\n", WSAGetLastError());
+ //       closesocket(acceptedSocket);
+ //       WSACleanup();
+ //       return 1;
+ //   }
+
+
 
 	   //Close listen and accepted sockets
     closesocket(listenSocket);
-	for (int i = 0; i < currentClients; i++)
-	{
-		closesocket(acceptedSocket[i]);
-	}
+
    
 	free_hash();
 	// Deinitialize WSA library

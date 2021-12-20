@@ -86,7 +86,13 @@ TableValue *hash_table_retreive(const char* key)
 
 void insert_message_in(const char* key, Message message, const char* in_out)
 {
-	TableValue *tv = hash_table_retreive(key);
+	TableValue* tv = hash_table_retreive(key);
+
+	if (tv == NULL)// ako ne postoji taj klijent napravi ga 
+	{
+		hash_table_insert_client(key);
+	}
+
 	if (strcmp("in", in_out) == 0)//ako je inbox
 	{
 		Enqueue(&tv->inbox_start, message);

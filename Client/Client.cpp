@@ -125,7 +125,8 @@ int main()
 		printf("Choose option: \n\n");
 		printf("1: Send message\n");
 		printf("2: View messages\n");
-		printf("3: Exit\n");
+		printf("3: Send 100 000 messages(TEST)\n");
+		printf("4: Exit\n");
 
 		char option[5];
 		gets_s(option, 5);
@@ -207,7 +208,29 @@ int main()
 			
 
 		}
-		else if (strcmp(option, "3") == 0)//gasi
+		else if (strcmp(option, "3") == 0)
+		{
+			Message* msg = (Message*)malloc(sizeof(Message));
+			int iResult;
+			strcpy(msg->destination, "TestClient");
+			strcpy(msg->message_content, "sending 10 000 messagess");
+			msg->size_of_message = strlen(msg->message_content);
+			for (int i = 0; i < 10000; i++)
+			{
+				iResult = SendMsg(msg->destination, msg->message_content, msg->size_of_message, &connectSocket);
+			}
+
+			free(msg);
+
+			if (iResult == SOCKET_ERROR)
+			{
+				printf("send failed with error: %d\n", WSAGetLastError());
+				closesocket(connectSocket);
+				WSACleanup();
+				return 1;
+			}
+		}
+		else if (strcmp(option, "4") == 0)//gasi
 		{
 
 			// Shutdown the connection since we're done
