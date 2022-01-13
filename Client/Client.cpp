@@ -173,13 +173,16 @@ int main()
 
 
 			    Message* msgRec = (Message*)malloc(sizeof(Message));
+				int i = 0;
 									
 				while (true)
-				{
+				{ 
+					
 					iResult = recv(connectSocket, (char*)msgRec, sizeof(Message), 0);
 					if (iResult > 0)
 					{
 						printf("MESSAGE\n\n");
+						printf("%d", ++i);
 						printf("FROM: %s\n TEXT: %s\n\n", msgRec->source, msgRec->message_content);
 						if (strcmp(msgRec->destination, "client") == 0, strcmp(msgRec->message_content, "all done") == 0) {
 							printf("All delivered, press any key to go back\n");
@@ -215,7 +218,7 @@ int main()
 			strcpy(msg->destination, "TestClient");
 			strcpy(msg->message_content, "sending 10 000 messagess");
 			msg->size_of_message = strlen(msg->message_content);
-			for (int i = 0; i < 10000; i++)
+			for (int i = 0; i < 100; i++)
 			{
 				iResult = SendMsg(msg->destination, msg->message_content, msg->size_of_message, &connectSocket);
 			}

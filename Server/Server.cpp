@@ -115,7 +115,7 @@ DWORD WINAPI Move_from_outbox_to_inbox(LPVOID lpParam)
 	TableValue* tv = hash_table_retreive(username);
 	while (true)
 	{
-		Message* msg = Dequeue(&(tv->outbox_start));//mozda da napravimo neki get message u hash tablu
+		Message* msg = Dequeue(&(tv->outbox_start));
 		if (msg == NULL)
 		{
 			Sleep(1500);
