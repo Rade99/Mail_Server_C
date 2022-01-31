@@ -182,7 +182,7 @@ int main()
 					if (iResult > 0)
 					{
 						printf("MESSAGE\n\n");
-						printf("%d", ++i);
+						
 						printf("FROM: %s\n TEXT: %s\n\n", msgRec->source, msgRec->message_content);
 						if (strcmp(msgRec->destination, "client") == 0, strcmp(msgRec->message_content, "all done") == 0) {
 							printf("All delivered, press any key to go back\n");

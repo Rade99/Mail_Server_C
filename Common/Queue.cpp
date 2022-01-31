@@ -8,7 +8,7 @@ void Init_Queue(QueueNode **head)
 
 void Enqueue(QueueNode** head, struct Message message)
 {
-	QueueNode* newNode = (QueueNode*)malloc(sizeof(struct QueueNode)); // napravim novi cvor tjst pokazivac na QUEUE, da ga popunim i da pronadjem mesto u redu
+	QueueNode* newNode = (QueueNode*)malloc(sizeof(struct QueueNode)); 
 
 	if (newNode == NULL) {
 		printf("Not enough RAM!\n");
@@ -17,34 +17,34 @@ void Enqueue(QueueNode** head, struct Message message)
 
 	strcpy(newNode->message.destination, message.destination);
 	strcpy(newNode->message.message_content, message.message_content);
-	newNode->message.size_of_message = message.size_of_message; // koja je fora sa ovim poljem
+	newNode->message.size_of_message = message.size_of_message; 
 	strcpy(newNode->message.source, message.source);
 
 	newNode->next = NULL;
 
-	if (*head == NULL) { // list is empty
+	if (*head == NULL) { 
 		*head = newNode;
 		return;
 	}
 	else
 	{
-		QueueNode* pomocni = *head;// da ne bi pomerali head
+		QueueNode* pomocni = *head;
 		while (pomocni->next != NULL) {
-			pomocni = pomocni->next;//traverse the list until p is the last node.The last node always points to NULL.
+			pomocni = pomocni->next;
 		}
-		pomocni->next = newNode;//Point the previous last node to the new node created. //dodaje na kraj reda-liste
+		pomocni->next = newNode;
 	}
 }
 
-Message* Dequeue(QueueNode** head)// nije do kraja
+Message* Dequeue(QueueNode** head)
 {
 	QueueNode* p = *head;
 	if (p == NULL)
 	{
-		return NULL;//red je prazan nije moguc dequeue
+		return NULL;
 	}
 
-	Message* ret = (Message*)malloc(sizeof(struct Message));//ovde nikada nije oslovodjena memorija
+	Message* ret = (Message*)malloc(sizeof(struct Message));
 	if (ret == NULL) {
 		printf("Not enough RAM!\n");
 		exit(21);
@@ -56,19 +56,19 @@ Message* Dequeue(QueueNode** head)// nije do kraja
 	strcpy(ret->source, p->message.source);
 	ret->size_of_message = p->message.size_of_message;
 
-	*head = p->next;// glava je sada sledeci
-	free(p);// oslobadjamo memoriju prvog kog smo ocitali
+	*head = p->next;
+	free(p);
 
 	return ret;
 }
 
 void PrintQueue(QueueNode* head)
 {
-	//po,mocna promenljiva bi nam trebala samo ako se radi o referenci jer bi se glaa meenjala pa bi morali to negde da zapamtimo
-	while (head != NULL)// msms da moze i sa next ejr na kraju next pokazuje na kraj liste
+	
+	while (head != NULL)
 	{
-		printf("poruka: %s, odrediste %s, velicina %d\n", head->message.message_content, head->message.destination, head->message.size_of_message);//videcemo sta
-		head = head->next;// nisu poredjane jedno za drugim
+		printf("poruka: %s, odrediste %s, velicina %d\n", head->message.message_content, head->message.destination, head->message.size_of_message);
+		head = head->next;
 	}
 }
 

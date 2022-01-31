@@ -1,0 +1,4 @@
+﻿  Client.cpp
+c:\fax\ikp\projekat\ikp_projekat\client\client.cpp(144): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+c:\fax\ikp\projekat\ikp_projekat\client\client.cpp(220): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  Client.vcxproj -> C:\fax\ikp\Projekat\IKP_Projekat\x64\Debug\Client.exe

@@ -107,14 +107,14 @@ void insert_message_in(const char* key, Message message, const char* in_out)
 	}
 }
 
-void free_hash()//proveri
+void free_hash()
 {
 	for (int i = 0; i < TABLE_SIZE; i++) {
 		if (hash_table[i] == NULL)
 		{
 			continue;
 		}
-		else {// NE ZNAM DA LI JA OVO DOBRO RADIM
+		else {
 			DeleteQueue(&(hash_table[i]->value->inbox_start));
 			DeleteQueue(&(hash_table[i]->value->outbox_start));
 			free(hash_table[i]->value);

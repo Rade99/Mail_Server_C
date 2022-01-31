@@ -153,7 +153,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 	SOCKET* acceptedSocket = (SOCKET *)lpParam;
 	unsigned long mode = 0;
 	iResult = ioctlsocket(*acceptedSocket, FIONBIO, &mode);//blokirajuci rezim
-	//Message* msg = (Message*)malloc(sizeof(Message));// ovo msm da cak i ne mora u svom projasu sam video da sam samo stavio msg bez alociranja
+	//Message* msg = (Message*)malloc(sizeof(Message));
 	char username[MAX_SIZE_NAME];
 	DWORD transfer;
 	HANDLE threadHandler=NULL; // bez ovoga error
@@ -377,7 +377,7 @@ int main()
 
 	printf("Server socket is set to listening mode. Waiting for new connection requests.\n");
 
-	DWORD connection;//nemam pojma cemu sluzi
+	DWORD connection;
 	HANDLE threadHandler;
 	threadHandler = CreateThread(NULL, 0, &ConnectionThread, &listenSocket, 0, &connection);
 	if (threadHandler == NULL)
