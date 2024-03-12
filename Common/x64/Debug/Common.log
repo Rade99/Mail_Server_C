@@ -1,5 +1,1 @@
-﻿  Hash_table.cpp
-c:\fax\ikp\projekat\ikp_projekat\common\hash_table.cpp(12): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
-  Queue.cpp
-  Generating Code...
-  Common.vcxproj -> C:\fax\ikp\Projekat\IKP_Projekat\x64\Debug\Common.lib
+﻿  Common.vcxproj -> C:\Users\radex\Desktop\Mail server\Mail_Server_C\x64\Debug\Common.lib

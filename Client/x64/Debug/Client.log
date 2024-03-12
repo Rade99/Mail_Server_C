@@ -1,4 +1,4 @@
 ﻿  Client.cpp
-c:\fax\ikp\projekat\ikp_projekat\client\client.cpp(144): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-c:\fax\ikp\projekat\ikp_projekat\client\client.cpp(220): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
-  Client.vcxproj -> C:\fax\ikp\Projekat\IKP_Projekat\x64\Debug\Client.exe
+C:\Users\radex\Desktop\Mail server\Mail_Server_C\Client\Client.cpp(141,38): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+C:\Users\radex\Desktop\Mail server\Mail_Server_C\Client\Client.cpp(212,55): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  Client.vcxproj -> C:\Users\radex\Desktop\Mail server\Mail_Server_C\x64\Debug\Client.exe

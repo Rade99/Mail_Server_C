@@ -22,9 +22,6 @@ SOCKET Connect(char* queueName) {
 	// Variable used to store function return value
 	int iResult;
 
-	//// Buffer we will use to store message
-	//char dataBuffer[BUFFER_SIZE];
-
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
 	WSADATA wsaData;
 
@@ -98,8 +95,6 @@ int SendMsg(char* queueName, char* message, int messageSize,SOCKET* connectSocke
 	return iResult;	
 }
 
-
-
 // TCP client that use blocking sockets
 int main() 
 {	
@@ -119,7 +114,6 @@ int main()
 
 	printf("Connected to server and DB\n");
 
-
 	while (true)
 	{
 		printf("Choose option: \n\n");
@@ -134,12 +128,14 @@ int main()
 		if (strcmp(option,"1")==0)
 		{
 			Message* msg = (Message*)malloc(sizeof(Message));
+
 			printf("Enter destination: ");			
 			gets_s(msg->destination, MAX_SIZE_NAME);
 			printf("\n");
 			printf("Enter message: ");
 			char tmp[MAX_MESSAGE_SIZE];		
 			gets_s(tmp, MAX_MESSAGE_SIZE);
+
 			strcpy(msg->message_content, tmp);
 			msg->size_of_message = strlen(tmp);
 			int iResult = SendMsg(msg->destination, msg->message_content, msg->size_of_message, &connectSocket);
@@ -170,20 +166,17 @@ int main()
 
 			free(msg);
 
-
-
-			    Message* msgRec = (Message*)malloc(sizeof(Message));
-				int i = 0;
+			Message* msgRec = (Message*)malloc(sizeof(Message));
+		    int i = 0;
 									
 				while (true)
-				{ 
-					
+				{ 				
 					iResult = recv(connectSocket, (char*)msgRec, sizeof(Message), 0);
 					if (iResult > 0)
 					{
-						printf("MESSAGE\n\n");
-						
+						printf("MESSAGE\n\n");		
 						printf("FROM: %s\n TEXT: %s\n\n", msgRec->source, msgRec->message_content);
+
 						if (strcmp(msgRec->destination, "client") == 0, strcmp(msgRec->message_content, "all done") == 0) {
 							printf("All delivered, press any key to go back\n");
 							_getch();
@@ -208,8 +201,6 @@ int main()
 					}
 
 				}
-			
-
 		}
 		else if (strcmp(option, "3") == 0)
 		{
@@ -233,11 +224,10 @@ int main()
 				return 1;
 			}
 		}
-		else if (strcmp(option, "4") == 0)//gasi
+		else if (strcmp(option, "4") == 0)
 		{
-
 			// Shutdown the connection since we're done
-			iResult = shutdown(connectSocket, SD_SEND); //da li ce mi ugasiti i server?
+			iResult = shutdown(connectSocket, SD_SEND); 
 
 			// Check if connection is succesfully shut down.
 			if (iResult == SOCKET_ERROR)
@@ -257,7 +247,5 @@ int main()
 			return 0;
 		}
 	}
-
-
     return 0;
 }

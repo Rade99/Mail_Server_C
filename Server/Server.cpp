@@ -57,15 +57,9 @@ DWORD WINAPI ConnectionThread(LPVOID lpParam)
 			FD_SET(*listenSocket, &readfds);
 		}
 
-		/*for (int i = 0; i < currentClients; i++)//OVO PRAVI PROBLEM!!! SERVER SE NE ZATVORI NEGO ZABLOKIRA RETURN JE 1 ILI -1
-		{
-			FD_SET(acceptedSocket[i], &readfds);
-		}*/
-
 		int iResult = select(0, &readfds, NULL, NULL, &timeVal);
 
 		if (iResult == 0) {
-			//printf("No changes \n");
 			continue;
 		}
 		else if (iResult == SOCKET_ERROR)
@@ -75,10 +69,10 @@ DWORD WINAPI ConnectionThread(LPVOID lpParam)
 			WSACleanup();
 			return -1;
 		}
-		else if (FD_ISSET(*listenSocket, &readfds)) { //zahtev za konekciju
-			printf("Client \n");
+		else if (FD_ISSET(*listenSocket, &readfds)) { // Connection request - username sent
+			printf("Client ");
 			acceptedSocket[currentClients] = accept(*listenSocket, (SOCKADDR*)&client, &size);
-			//	acceptedSocket[currentClients]
+
 			if (acceptedSocket[currentClients] == INVALID_SOCKET)
 			{
 				closesocket(acceptedSocket[currentClients]);
@@ -86,7 +80,7 @@ DWORD WINAPI ConnectionThread(LPVOID lpParam)
 				continue;
 			}
 
-			DWORD communicaton;//nemam pojma cemu sluzi
+			DWORD communicaton;
 			HANDLE threadHandler;
 			threadHandler = CreateThread(NULL, 0, &Communication_with_client, &acceptedSocket[currentClients], 0, &communicaton);
 			if (threadHandler == NULL)
@@ -94,18 +88,11 @@ DWORD WINAPI ConnectionThread(LPVOID lpParam)
 				printf("Error with creating a thread\n");
 			}
 
-			/*printf("client %d done \n", currentClients);*/
 			currentClients++;
 		}
 
 	}
-	//Nikada nece stici ovde
-	for (int i = 0; i < currentClients; i++)
-	{
-		closesocket(acceptedSocket[i]);
-	}
-	ConnectionThreadFlag = -1;
-	ExitThread(exitCode);
+	
 }
 
 DWORD WINAPI Move_from_outbox_to_inbox(LPVOID lpParam)
@@ -122,26 +109,18 @@ DWORD WINAPI Move_from_outbox_to_inbox(LPVOID lpParam)
 			continue;
 		}
 
-		if (hash_table_retreive(msg->destination) == NULL)
-		{
-			hash_table_insert_client(msg->destination);
-		}
-
 		insert_message_in(msg->destination, *msg, "in");
-
-		
+	
 		free(msg);
 		print_table();
 	}
 
 }
-DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
+DWORD WINAPI Communication_with_client(LPVOID lpParam)
 {
-	//POBLJSANJE SA thread poolom
 	int iResult;
 	DWORD exitCode = 2;
 	
-
 	TableValue *tv = (TableValue*)malloc(sizeof(TableValue));
 
 	if (tv == NULL) {
@@ -152,37 +131,34 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 	bool firstTimeEnter = true;
 	SOCKET* acceptedSocket = (SOCKET *)lpParam;
 	unsigned long mode = 0;
-	iResult = ioctlsocket(*acceptedSocket, FIONBIO, &mode);//blokirajuci rezim
-	//Message* msg = (Message*)malloc(sizeof(Message));
+	iResult = ioctlsocket(*acceptedSocket, FIONBIO, &mode); // Block regime
 	char username[MAX_SIZE_NAME];
 	DWORD transfer;
-	HANDLE threadHandler=NULL; // bez ovoga error
-
-	/*if (msg == NULL) {
-		printf("Not enough RAM!\n");
-		exit(21);
-	}*/
+	HANDLE threadHandler=NULL; 
 
 	while (true)
 	{
 
 		Message* msg = (Message*)malloc(sizeof(Message));
+
 		if (msg == NULL) {
 		printf("Not enough RAM!\n");
 		exit(21);
 		}
-		if (firstTimeEnter == true)// za prvu porukicu koja je username
+
+		if (firstTimeEnter == true)// For first message that is username
 		{
 			
 			iResult = recv(*acceptedSocket, username, MAX_SIZE_NAME, 0);
+			printf("%s \n", username);
+
 			tv = hash_table_retreive(username);
-			//to do validacija na klijentu da li je bas ime od 14+1 karakter 
+			
 			if (tv == NULL)
 			{
 				hash_table_insert_client(username);
 			}
 		
-			
 			threadHandler = CreateThread(NULL, 0, &Move_from_outbox_to_inbox, username, 0, &transfer);
 			if (threadHandler == NULL)
 			{
@@ -192,7 +168,7 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			firstTimeEnter = false;
 		}
 
-		// Receive data until the client shuts down the connection
+		// Waiting to receive data until the client shuts down the connection
 		iResult = recv(*acceptedSocket, (char*)msg, sizeof(Message), 0);
 
 		if (iResult > 0)	// Check if message is successfully received
@@ -226,7 +202,6 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 						break;
 					}
 						
-
 					int iResult = send(*acceptedSocket, (char*)(msgSend), sizeof(Message), 0);
 					if (iResult == SOCKET_ERROR)
 					{
@@ -240,42 +215,32 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 
 			if (writeDB)
 			{
-				//dataBuffer[iResult] = '\0';
 				msg->size_of_message = ntohl((unsigned long)msg->size_of_message);
 				strcpy(msg->source, username);
-				// Log message text
-				printf("Client %s sent: %s %s %d.\n", msg->source, msg->destination, msg->message_content, msg->size_of_message);
+
+				printf("Client %s sended to: %s message: %s lenght: %d.\n", msg->source, msg->destination, msg->message_content, msg->size_of_message);
 
 				insert_message_in(username, *msg, "out");
 			}
-			
-
 		}
 		else if (iResult == 0)	// Check if shutdown command is received
 		{
 			// Connection was closed successfully
 			printf("Connection with client closed.\n");
-			
-			currentClients--;// deljena promenljiva
+			currentClients--;
 			free(msg);
 			free(tv);
 			if (SOCKET_ERROR == closesocket(*acceptedSocket))
 			{
 				printf("error with closing socket");
 			}
-			//closesocket(*acceptedSocket);
+			
 			TerminateThread(threadHandler, exitCode);
 			ExitThread(exitCode);
 		
-			
-		    
-			
-			//return 0;
-			//continue
 		}
-		else	// There was an error during recv
+		else // There was an error during recv
 		{
-
 			printf("recv failed with error: %d\n", WSAGetLastError());
 			currentClients--;
 			free(msg);
@@ -284,15 +249,11 @@ DWORD WINAPI Communication_with_client(LPVOID lpParam)//vrati nesto
 			{
 				printf("error with closing socket");
 			}
-			//closesocket(*acceptedSocket);
+
 			TerminateThread(threadHandler, exitCode);
 			ExitThread(exitCode);
-		}
-
-		//free(msg);
-
+		}		
 	}
-	
 }
 
 // TCP server that use blocking sockets
@@ -304,13 +265,8 @@ int main()
 	// Socket used for listening for new clients 
 	SOCKET listenSocket = INVALID_SOCKET;
 
-
-
 	// Variable used to store function return value
 	int iResult;
-
-	//// Buffer used for storing incoming data
-	//char dataBuffer[BUFFER_SIZE];
 
 	// WSADATA data structure that is to receive details of the Windows Sockets implementation
 	WSADATA wsaData;
@@ -322,7 +278,6 @@ int main()
 		return 1;
 	}
 
-
 	// Initialize serverAddress structure used by bind
 	sockaddr_in serverAddress;
 	memset((char*)&serverAddress, 0, sizeof(serverAddress));
@@ -330,13 +285,12 @@ int main()
 	serverAddress.sin_addr.s_addr = INADDR_ANY;		// Use all available addresses
 	serverAddress.sin_port = htons(SERVER_PORT);	// Use specific port
 
-
 	// Create a SOCKET for connecting to server
 	listenSocket = socket(AF_INET,      // IPv4 address family
 		SOCK_STREAM,  // Stream socket
 		IPPROTO_TCP); // TCP protocol
 
-// Check if socket is successfully created
+	// Check if socket is successfully created
 	if (listenSocket == INVALID_SOCKET)
 	{
 		printf("socket failed with error: %ld\n", WSAGetLastError());
@@ -357,6 +311,7 @@ int main()
 	}
 
 	unsigned long mode = 1;
+	// Socket in non-block regime
 	iResult = ioctlsocket(listenSocket, FIONBIO, &mode);
 	if (iResult == SOCKET_ERROR)
 	{
@@ -398,28 +353,12 @@ int main()
 		}
 		CloseHandle(threadHandler);
 
-	// Shutdown the connection since we're done
- //   iResult = shutdown(acceptedSocket, SD_BOTH);
-
-	//// Check if connection is succesfully shut down.
- //   if (iResult == SOCKET_ERROR)
- //   {
- //       printf("shutdown failed with error: %d\n", WSAGetLastError());
- //       closesocket(acceptedSocket);
- //       WSACleanup();
- //       return 1;
- //   }
-
-
-
-	   //Close listen and accepted sockets
+	//Close listen and accepted sockets
     closesocket(listenSocket);
 
-   
 	free_hash();
 	// Deinitialize WSA library
     WSACleanup();
-
 }
 	
 

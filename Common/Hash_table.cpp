@@ -88,12 +88,12 @@ void insert_message_in(const char* key, Message message, const char* in_out)
 {
 	TableValue* tv = hash_table_retreive(key);
 
-	if (tv == NULL)// ako ne postoji taj klijent napravi ga 
+	if (tv == NULL)// If reciver doesn't exist
 	{
 		hash_table_insert_client(key);
 	}
 
-	if (strcmp("in", in_out) == 0)//ako je inbox
+	if (strcmp("in", in_out) == 0) //inbox
 	{
 		Enqueue(&tv->inbox_start, message);
 	}

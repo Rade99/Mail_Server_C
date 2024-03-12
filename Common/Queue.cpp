@@ -50,7 +50,6 @@ Message* Dequeue(QueueNode** head)
 		exit(21);
 	}
 
-
 	strcpy(ret->destination, p->message.destination);
 	strcpy(ret->message_content, p->message.message_content);
 	strcpy(ret->source, p->message.source);
@@ -64,7 +63,6 @@ Message* Dequeue(QueueNode** head)
 
 void PrintQueue(QueueNode* head)
 {
-	
 	while (head != NULL)
 	{
 		printf("poruka: %s, odrediste %s, velicina %d\n", head->message.message_content, head->message.destination, head->message.size_of_message);
